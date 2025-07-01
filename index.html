@@ -1,91 +1,107 @@
 <!DOCTYPE html>
-  <html>
-  <head>
-      <link rel="stylesheet" type="text/css" href="https://unpkg.com/vue-audio-mixer/dist/vue-audio-mixer.min.css">
-  </head>
-  <body>
-
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Advanced Vue Audio Mixer</title>
+  <link rel="stylesheet" href="https://unpkg.com/vue-audio-mixer/dist/vue-audio-mixer.min.css">
+</head>
+<body>
   <div id="app">
-    <div>
-      <div style="text-align: center;">
-        <div style="position:relative; display: inline-block; ">
-          <vue-audio-mixer 
-              :config="config" 
-              size="medium" 
-              theme="dark" 
-              :show-pan="true"
-              :show-total-time="true"
-          />
-        </div>
-      </div>
-    </div>
+    <h2>Audio Input & Output Settings</h2>
+    <label>Input Device:
+      <select v-model="selectedInput" @change="changeInput">
+        <option v-for="device in inputDevices" :value="device.deviceId">{{ device.label || 'Input ' + device.deviceId }}</option>
+      </select>
+    </label>
+    <br><br>
+    <label>Output Device:
+      <select v-model="selectedOutput" @change="changeOutput">
+        <option v-for="device in outputDevices" :value="device.deviceId">{{ device.label || 'Output ' + device.deviceId }}</option>
+      </select>
+    </label>
+
+    <h3>Upload Custom Track</h3>
+    <input type="file" @change="handleUpload" accept="audio/*">
+
+    <vue-audio-mixer 
+      :config="config"
+      size="medium"
+      theme="dark"
+      :show-pan="true"
+      :show-total-time="true"
+    />
   </div>
+
   <script src="https://unpkg.com/vue@2.6.14/dist/vue.js"></script>
   <script src="https://unpkg.com/vue-audio-mixer/dist/vue-audio-mixer.min.js"></script>
 
   <script>
-    const app = new Vue({
-      el: '#app',
-      data : function(){     
+    new Vue({
+      el: "#app",
+      data() {
         return {
-          is_loaded:false,
-          newconfig:{},
-          config:
-{
-  "tracks": [
-    {
-      "title": "Bass",
-      "url": "https://audiomixer.io/stems/bass.mp3",
-      "pan": -30,
-      "gain": 0.5,
-      "muted": false,
-      "hidden": false
-    },
-    {
-      "title": "Flutes",
-      "url": "https://audiomixer.io/stems/flutes.mp3",
-      "pan": 81,
-      "gain": 1.08,
-      "muted": false,
-      "hidden": false
-    },
-    {
-      "title": "Perc",
-      "url": "https://audiomixer.io/stems/perc.mp3",
-      "pan": -49,
-      "gain": 0.85,
-      "muted": false,
-      "hidden": false
-    },
-    {
-      "title": "Piano",
-      "url": "https://audiomixer.io/stems/piano.mp3",
-      "pan": -60,
-      "gain": 0.6,
-      "muted": false,
-      "hidden": false
-    },
-    {
-      "title": "Strings",
-      "url": "https://audiomixer.io/stems/strings.mp3",
-      "pan": -49,
-      "gain": 0.85,
-      "muted": false,
-      "hidden": false
-    }
-  ],
-  "master": {
-    "pan": 0,
-    "gain": 1,
-    "muted": false
-  }
-}
-
-            
-          }  
+          inputDevices: [],
+          outputDevices: [],
+          selectedInput: '',
+          selectedOutput: '',
+          config: {
+            tracks: [
+              {
+                title: "Custom Upload",
+                url: "",
+                pan: 0,
+                gain: 1,
+                muted: false,
+                hidden: false
+              }
+            ],
+            master: {
+              pan: 0,
+              gain: 1,
+              muted: false
+            }
+          }
+        };
+      },
+      methods: {
+        async getDevices() {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          this.inputDevices = devices.filter(d => d.kind === "audioinput");
+          this.outputDevices = devices.filter(d => d.kind === "audiooutput");
+        },
+        async changeInput() {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              audio: { deviceId: this.selectedInput }
+            });
+            console.log("Input changed:", stream);
+            // You can connect this stream to your mixer if needed
+          } catch (err) {
+            alert("Error selecting input device: " + err);
+          }
+        },
+        changeOutput() {
+          const audioElements = document.querySelectorAll("audio");
+          audioElements.forEach(audio => {
+            if (typeof audio.setSinkId === "function") {
+              audio.setSinkId(this.selectedOutput).catch(err => {
+                alert("Error setting output device: " + err);
+              });
+            }
+          });
+        },
+        handleUpload(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+          const url = URL.createObjectURL(file);
+          this.config.tracks[0].url = url;
+          this.config.tracks[0].title = file.name;
         }
-      })
-    </script> 
-
-  </body>
+      },
+      mounted() {
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(this.getDevices);
+      }
+    });
+  </script>
+</body>
 </html>
